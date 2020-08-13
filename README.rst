@@ -47,7 +47,7 @@ This will typeset the file input/LRG_110.xml into a PDF, and write the output in
 
 
 Manual Usage
----
+-------
 
 Build the docker image using
 

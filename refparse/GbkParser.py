@@ -1,4 +1,5 @@
 from Bio import SeqIO
+from Bio.SeqFeature import FeatureLocation, CompoundLocation
 
 __author__ = 'mwelland'
 __version__ = 2.0
@@ -44,7 +45,7 @@ class GbkParser:
         try:
             self.transcriptdict = dict(transcripts={}, input=SeqIO.to_dict(SeqIO.parse(self.cli_args.input_file, 'genbank')),
                                        pad=int(padding), pad_offset=int(padding) % 5)
-            self.transcriptdict['refseqname'] = self.transcriptdict['input'].keys()[0]
+            self.transcriptdict['refseqname'] = list(self.transcriptdict['input'].keys())[0]
             self.is_matt_awesome = True
         except IOError as fileNotPresent:
             raise Exception("The specified file cannot be located: {}".format(fileNotPresent.filename))
@@ -116,13 +117,14 @@ class GbkParser:
                 self.transcriptdict['refseqname'] = self.transcriptdict['genename']
                 self.transcriptdict['genename'] = self.cds[0].qualifiers['gene'][0]
             exon = 1
-            subfeatures = selected_mrna._get_sub_features()
+
+            subfeatures = selected_mrna.location.parts
 
             for coords in subfeatures:
                 self.transcriptdict['transcripts'][alt]['list_of_exons'].append(exon)
                 self.transcriptdict['transcripts'][alt]['exons'][exon] = {
-                    'genomic_start': coords.location.start,
-                    'genomic_end': coords.location.end
+                    'genomic_start': coords.start,
+                    'genomic_end': coords.end
                 }
                 exon += 1
 
