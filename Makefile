@@ -9,12 +9,15 @@ GID = $(shell id -g)
 current_dir = $(shell pwd)
 
 # dud target - runs help then escapes
-.PHONY: help
+.PHONY: description
 
-help:	## show help message
+description:	## show help message
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2 } END{print ""}' $(MAKEFILE_LIST)
 
-pdf: .refparse_built tex_generated	## generate a pdf based on the target file
+help: .refparse_built	## run this to see additional command line arguments for the typesetter - this file might not let you use them, but you'll be able to see them...
+		docker run $(DEFAULT_REFPARSE_NAME) -h
+
+pdf: .refparse_built tex_generated	## generate a pdf based on the target file (include input/ in the path) - tidies up temp files
 	for file in $(shell ls output/*.tex); \
 	do docker run --rm --user $(UID):$(GID) -v $(current_dir):/sources embix/pdflatex:v1 -output-directory=output $$file; \
 	done
