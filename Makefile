@@ -1,6 +1,6 @@
 DEFAULT_PDFLATEX=embix/pdflatex
 DEFAULT_PDFLATEX_VERSION=v1
-DEFAULT_REFPARSE_NAME=refparse:local
+DEFAULT_REFPARSE_NAME=mattwellle/refparse:latest
 target_file:=
 
 # these are the commands which require calling through from shell
@@ -39,6 +39,7 @@ tex_generated: .refparse_built	## generates a tex file based on the input file t
 	docker pull $(DEFAULT_PDFLATEX):$(DEFAULT_PDFLATEX_VERSION)
 	touch $@
 
-.refparse_built: Dockerfile refparse/*	## creates the docker images for use locally
+.refparse_built: Dockerfile refparse/*	## creates the docker images for use locally - this could be done by pulling, but it's a quick slim build
 	docker build -t $(DEFAULT_REFPARSE_NAME) .
+	docker push $(DEFAULT_REFPARSE_NAME)  # maybe this won't work...
 	touch $@
