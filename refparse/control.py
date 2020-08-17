@@ -3,16 +3,17 @@ import argparse
 import configparser
 from reader import Reader
 from latex_writer import LatexWriter
-from subprocess import call
+from GBParser import GBParser
+from LRGParser import LRGParser
 from primer_module import Primer
 import os
 import logging
 from utilities import check_file_type
 
-__author__ = 'mwelland'
+__author__ = "mwelland"
 __version__ = 2.0
-__version_date__ = '06/08/2020'
-'''
+__version_date__ = "06/08/2020"
+"""
 - The input file type is checked and the file_type variable is set
     - If the input is LRG, an LRG_Parser instance is created
     - If the input is GenBank, an GbkParser instance is created
@@ -54,45 +55,11 @@ __version_date__ = '06/08/2020'
 - The LatexWriter also creates the full PDF output using a Python facilitated
     command line call. The output '.tex' file is created in the new output
     directory and is processed using pdflatex
-'''
-
-
-def get_version():
-    """
-    Quick function to grab version details for final printing
-    :return:
-    """
-    return 'Version: {0}, Version Date: {1}'.format(str(__version__), __version_date__)
-
-
-# def check_for_required_folders():
-#     """
-#     input: files,
-#     primers: files,
-#     output: files,
-#             tex_files: files,
-#     requirements,
-#     """
-#     top_level_files = os.listdir('.')
-#     assert all([folder_name in top_level_files for folder_name in
-#                ['input', 'primers', 'output', 'requirements']])
-#     assert 'tex_files' in os.listdir('output')
+"""
 
 
 def about():
-    return """
-    \nMatthew Welland, 8, January 2015
-    This is a Python program for creating reference sequences
-    To create sequences you will need a computer with LaTex installed\n
-    Clicking the "Browse..." button will show you the local directory
-    From here choose an LRG file you would like to create a reference for
-    To identify the correct LRG, find the gene on http://www.lrg-sequence.org/LRG\n
-    This program will produce a .PDF document
-    This has been done to prevent any issues with later editing
-    The document can be annontated by the use of highlighting\n\n
-    If there are any faults during execution or output problems
-    please contact matthew.welland@bwnft.nhs.uk, WMRGL, Birmingham\n
-
+    """
     ─────────▄──────────────▄
     ────────▌▒█───────────▄▀▒▌
     ────────▌▒▒▀▄───────▄▀▒▒▒▐
@@ -113,44 +80,62 @@ def about():
     ───▐▀▒▀▄▄▄▄▄▄▀▀▀▒▒▒▒▒▄▄▀
     --──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▀
 
-    \nSo gene\nSuch reference\nWow
+    So gene. Such reference. Wow.
     """
+    return
+
+
+def find_filename(gene):
+    """
+    checks within the 'primers' folder for a matching file name
+    returns the file with extension if a match is found
+    Args:
+        gene: name of the gene we are trying to match to a primer file
+    """
+    try:
+        gene_name_files = {
+            os.path.splitext(fname)[0]: fname for fname in os.listdir("primers")
+        }
+        if gene in gene_name_files.keys():
+            return gene_name_files[gene]
+    except:
+        return False
+    return False
 
 
 def run_parser():
     file_type = check_file_type(args.input_file)
-    if file_type == 'gbk':
-        from GbkParser import GbkParser
-        gbk_reader = GbkParser(args, app_settings)
+    if file_type == "gbk":
+        gbk_reader = GBParser(args, app_settings)
         dictionary = gbk_reader.run()
         parser_details = gbk_reader.get_version
-    elif file_type == 'lrg':
-        from LrgParser import LrgParser
-        lrg_reader = LrgParser(args, app_settings)
+    elif file_type == "lrg":
+        lrg_reader = LRGParser(args, app_settings)
         dictionary = lrg_reader.run()
         parser_details = lrg_reader.get_version
 
     else:
         raise Exception("Unrecognised file format: {}".format(file_type))
 
-    primer_list = os.listdir('primers')
-    if '{}.csv'.format(dictionary['genename']) in primer_list:
-        primer_label = Primer(dictionary, os.getcwd())
+    # check for a strict filename match and run the primer annotation if appropriate
+    filename_or_false = find_filename(dictionary["genename"])
+    if filename_or_false:
+        logging.info(
+            "Primer {} identified, running annotation".format(filename_or_false)
+        )
+        primer_label = Primer(dictionary, filename=filename_or_false)
         dictionary = primer_label.run()
 
-    parser_details = '{} Parser: {}'.format(
-        file_type.upper(),
-        parser_details
-    )
+    parser_details = "{} Parser: {}".format(file_type.upper(), parser_details)
 
-    # os.chdir("output")
-    for transcript in dictionary['transcripts']:
-        version_details = 'RerenceTypeSetter: {}'.format(get_version())
+    for transcript in dictionary["transcripts"]:
+        version_details = "ReferenceTypeSetter: Version: {0}, Version Date: {1}".format(
+            __version__, __version_date__
+        )
         list_of_versions = [parser_details, version_details]
 
         lrg_num = "{}t{}".format(
-            args.input_file.split('.')[0].split('/')[1],
-            transcript
+            args.input_file.split(".")[0].split("/")[1], transcript
         )
 
         input_reader = Reader(
@@ -160,64 +145,54 @@ def run_parser():
             list_of_versions,
             file_type,
             lrg_num,
-            app_settings
+            app_settings,
         )
         input_list, nm = input_reader.run()
-        if file_type == 'gbk':
-            filename = "{}_{}".format(dictionary['genename'], nm)
+        if file_type == "gbk":
+            filename = "{}_{}".format(dictionary["genename"], nm)
         else:
-            filename = "{}_{}".format(dictionary['genename'], lrg_num)
+            filename = "{}_{}".format(dictionary["genename"], lrg_num)
 
         writer = LatexWriter(input_list, filename, args.write_as_latex)
-        print("Generated: {}".format(writer.run()))
-        # writer_output = writer.run()
-        # print("Generated: {}".format(writer_output))
-        # if args.write_as_latex:
-        #     try:
-        #         call(["pdflatex", "-interaction=batchmode", writer_output[0]])
-        #         clean_up(os.getcwd(), writer_output[1])
-        #         move_files(writer_output[0])
-        #     except:
-        #         logging.error('pdflatex call failed', exc_info=True)
+        logging.info("Generated file {}".format(writer.run()))
 
 
 def move_files(latex_file):
-    os.rename(latex_file, os.path.join('tex_files', latex_file))
-
-
-def clean_up(path, pdf_file):
-    pdf_split = pdf_file.split('_')
-    pwd_files = os.listdir(path)
-    pdf_files = [doc for doc in pwd_files if doc.endswith('pdf')]
-    for target in pdf_files:
-        if target != 'tex_files':
-            target_split = target.split('_')
-            if target_split[0:3] == pdf_split[0:3] and target_split[-2:] != pdf_split[-2:]:
-                os.remove(os.path.join(path, target))
-
-    targets = [doc for doc in pwd_files if doc.split('.')[-1] not in
-               app_settings['DEFAULT']['keep_extensions'].split(',')]
-    for target in targets:
-        if target != 'tex_files':
-            os.remove(os.path.join(path, target))
+    os.rename(latex_file, os.path.join("tex_files", latex_file))
 
 
 if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(description='Customise reference sequence settings')
-    arg_parser.add_argument('-i', dest='input_file', required=True)
-    arg_parser.add_argument('--trim', dest='trim_flanking', action='store_false', default=True)
-    arg_parser.add_argument('--clashes', dest='print_clashes', action='store_false', default=True)
-    arg_parser.add_argument('--text', dest='write_as_latex', action='store_false', default=True)
-    arg_parser.add_argument('--config', dest='settings', default='settings/default_settings.ini')
-    arg_parser.add_argument('--author', default="mwelland")
+
+    logging.basicConfig(level=logging.INFO)
+    arg_parser = argparse.ArgumentParser(
+        description="Customise reference sequence settings"
+    )
+    arg_parser.add_argument("-i", dest="input_file", required=True)
+    arg_parser.add_argument(
+        "--trim", dest="trim_flanking", action="store_false", default=True
+    )
+    arg_parser.add_argument(
+        "--clashes", dest="print_clashes", action="store_false", default=True
+    )
+    arg_parser.add_argument(
+        "--text",
+        dest="write_as_latex",
+        action="store_false",
+        default=True,
+        help="use the argument --text if you want to output only a text document (not conversion to PDF) - this prevents primer annotation",
+    )
+    arg_parser.add_argument(
+        "--config",
+        dest="settings",
+        default="settings/default_settings.ini",
+        help="location of a custom configparser configuration file",
+    )
+    arg_parser.add_argument("--author", default="mwelland")
     args = arg_parser.parse_args()
 
     app_settings = configparser.ConfigParser()
     app_settings.read(args.settings)
 
-    # check_for_required_folders()
-
-    keep_extensions = ['pdf', 'tex']
     run_parser()
 
-    print("Process has completed successfully")
+    logging.info("Process has completed successfully")

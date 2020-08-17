@@ -1,6 +1,6 @@
 DEFAULT_PDFLATEX=embix/pdflatex
 DEFAULT_PDFLATEX_VERSION=v1
-DEFAULT_REFPARSE_NAME=mattwellle/refparse:latest
+DEFAULT_REFPARSE_NAME=mattwellie/refparse:latest
 target_file:=
 
 # these are the commands which require calling through from shell
@@ -28,18 +28,18 @@ pdf: .refparse_built tex_generated	## generate a pdf based on the target file (i
 	-rm output/*.log output/*.upb output/*.upa output/*.out output/*.aux
 
 text: .refparse_built	## generates a text-only transcription from the target_file
-	docker run -v $(current_dir)/input:/input -v $(current_dir)/output:/output $(DEFAULT_REFPARSE_NAME) -i $(target_file) --text
+	docker run -v $(current_dir)/primers:/primers -v $(current_dir)/input:/input -v $(current_dir)/output:/output $(DEFAULT_REFPARSE_NAME) -i $(target_file) --text
 	-mkdir -p output/txt
 	mv output/*.txt output/txt/.
 
 tex_generated: .refparse_built	## generates a tex file based on the input file target_file
-	docker run -v $(current_dir)/input:/input -v $(current_dir)/output:/output $(DEFAULT_REFPARSE_NAME) -i $(target_file)
+	docker run -v $(current_dir)/primers:/primers -v $(current_dir)/input:/input -v $(current_dir)/output:/output $(DEFAULT_REFPARSE_NAME) -i $(target_file)
 
 .pdf_tex_pulled:	## only relevant if tex needs to be translated
 	docker pull $(DEFAULT_PDFLATEX):$(DEFAULT_PDFLATEX_VERSION)
 	touch $@
 
-.refparse_built: Dockerfile refparse/*	## creates the docker images for use locally - this could be done by pulling, but it's a quick slim build
+.refparse_built: Dockerfile $(shell find refparse -type f)	## creates the docker images for use locally - this could be done by pulling, but it's a quick slim build
 	docker build -t $(DEFAULT_REFPARSE_NAME) .
 	docker push $(DEFAULT_REFPARSE_NAME)  # maybe this won't work...
 	touch $@

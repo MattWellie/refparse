@@ -1,0 +1,3 @@
+Gene,Exon,Direction,Primer Sequences,Primer Batch Numbers,Fragment Size
+UNG,1,F,ctcggagcatgcgcgggccgcttggcgcca,This_is_the_first,9999
+UNG,1,F,gcggcggtgaggcgcggcttgg,NOW_REVERSE,9999

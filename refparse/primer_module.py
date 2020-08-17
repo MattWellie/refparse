@@ -1,85 +1,91 @@
 import re
 import os
 import csv
+import logging
 
 from utilities import create_reverse_complement
 
 
 class Primer:
-
-    def __init__(self, dictionary, basepath):
+    def __init__(self, dictionary, filename):
+        self.filename = filename
         self.dict = dictionary
-        self.basepath = basepath
-        self.primer_dict = {}
-        self.primer_files = []
-        self.carry_on = False
-        self.csv_reader = ''
 
-    def is_primer_present(self):
-        # Quick boolean check to see if there is a file saved with the filename
-        genename = self.dict['genename']
-        for file in self.primer_files:
-            filename = file.split('.')[0]
-            if genename.lower() == filename.lower():
-                self.carry_on = True
-                return filename
+    def digest_input(self):
+        """
+        Extract contents of the input CSV into a dictionary object
+        For each row, construct the annotation required, then pass to annotator
+        """
 
-    def digest_input(self, filename):
-        # Extract contents of the CSV
-        with open(os.path.join('primers', filename+'.csv')) as csvfile:
+        with open(os.path.join("primers", self.filename)) as csvfile:
             reader = csv.DictReader(csvfile)
-            exon = 1
-            frag_size = 0
-            for row in reader:
-                if row['Primer Sequences'] == '':
-                    pass
-                else:
-                    seq = row['Primer Sequences'].upper().strip()
-                    if seq == '':
-                        pass
-                    if row['Exon'] != '':
-                        exon = row['Exon']
-                    direction = row['Direction']
-                    if direction == 'R':
-                        seq = create_reverse_complement(seq)
-                    if row['Fragment Size'] == '':
-                        if direction == 'R' and frag_size != '':
-                            frag = frag_size
-                            frag_size = ''
-                        else:
-                            frag = ''
-                    else:
-                        frag = row['Fragment Size']
-                        frag_size = frag
 
-                    if row['Primer Batch Numbers'] == '':
-                        row['Primer Batch Numbers'] = 'Unavailable'
-                    if frag == '':
-                        constructed_string = 'Primer %s' % (exon+direction)
-                    else:
-                        constructed_string = 'Primer %s, Frag size = %s' % (exon+direction, frag)
-                    self.search_for_seq(seq, constructed_string)
+            for row in reader:
+                if row["Primer Sequences"].strip().rstrip() == "":
+                    continue
+
+                seq = row["Primer Sequences"].upper().strip()
+                if row["Exon"] == "":
+                    logging.warning("Primer Exon unspecified - please check input file")
+
+                if row["Direction"] == "R":
+                    seq = create_reverse_complement(seq)
+
+                if row["Fragment Size"] == "":
+                    logging.warning(
+                        "Fragment Size unspecified - please check input file"
+                    )
+
+                batch = (
+                    row["Primer Batch Numbers"]
+                    if row["Primer Batch Numbers"]
+                    else "Unknown"
+                )
+
+                frag_size = row["Fragment Size"] if row["Fragment Size"] else "Unknown"
+
+                constructed_string = "Primer {}{}, Frag size = {}, Batch = {}".format(
+                    row["Exon"], row["Direction"], frag_size, batch
+                )
+                self.search_for_seq(seq, constructed_string)
 
     def search_for_seq(self, seq, construct):
-    
-        for transcript in self.dict['transcripts']:
-            exonlist = self.dict['transcripts'][transcript]['exons'].keys()
-            for exon in exonlist:
+        """
+        Given a query sequence, this component will attempt to find a match for the sequence within the gene sequence
+        If a match is found, the naked sequence is substituted for a pdfcomment tag
+
+        This retains the typsetting, but layers a tag over the top which reveals details on mouse-over
+        Args:
+            seq: the sequence to recognise and replace
+            construct: the annotation to overlay
+        """
+
+        for transcript in self.dict["transcripts"]:
+            for exon in self.dict["transcripts"][transcript]["exons"].keys():
                 try:
-                    match = re.search(r'(?i){}'.format(seq),
-                                      self.dict['transcripts'][transcript]['exons'][exon]['sequence']
-                                      )
+                    match = re.search(
+                        r"(?i){}".format(seq),
+                        self.dict["transcripts"][transcript]["exons"][exon]["sequence"],
+                    )
                     if match:
-                        self.dict['transcripts'][transcript]['exons'][exon]['sequence'] = \
-                                    re.sub(r'(?i){}'.format(seq), r'\\pdfcomment[date]{%s}\\hl{%s}' % (construct, match.group()),\
-                                    str(self.dict['transcripts'][transcript]['exons'][exon]['sequence']))
+                        self.dict["transcripts"][transcript]["exons"][exon][
+                            "sequence"
+                        ] = re.sub(
+                            r"(?i){}".format(seq),
+                            "\\\\pdfcomment[date]{{{}}}\\\\hl{{{}}}".format(
+                                construct, match.group()
+                            ),
+                            self.dict["transcripts"][transcript]["exons"][exon][
+                                "sequence"
+                            ],
+                        )
 
                 except MemoryError:
-                    print(exon, seq)
+                    logging.error(
+                        "MemError annotating {} with {}".format(exon, seq),
+                        exc_info=True,
+                    )
 
     def run(self):
-        self.primer_files = os.listdir(os.path.join(self.basepath, 'primers'))
-        filename = self.is_primer_present()
-        if self.carry_on:
-            self.digest_input(filename)
+        self.digest_input()
         return self.dict
