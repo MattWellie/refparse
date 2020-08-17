@@ -75,11 +75,12 @@ class LRGParser:
             str(__version__), __version_date__
         )
 
-    # Grabs the sequence string from the <sequence/> tagged block
     def grab_element(self, path):
-        """ Grabs specific element from the xml file from a provided path """
+        """
+        Grabs specific element from the xml file from a provided path
+        Grabs the sequence string from the <sequence/> tagged block"""
         try:
-            return self.transcriptdict["root"].findall(path)[0]
+            return self.transcriptdict["root"].findall(path)[0].text
         except:
             raise Exception(
                 "No sequence was identified in {}".format(
@@ -107,7 +108,7 @@ class LRGParser:
                                     "NP_number"
                                 ] = protein_block.attrib["accession"]
                         except KeyError:
-                            logging.info("found redundant transcript")
+                            logging.debug("found redundant transcript")
 
     def get_exon_coords(self):
         """ Traverses the LRG ETree to find all the useful values
@@ -239,7 +240,7 @@ class LRGParser:
             sequence = translation.find("sequence").text
             self.transcriptdict["transcripts"][p_number]["protein_seq"] = (
                 sequence + "* "
-            )  # Stop codon
+            )
 
     def find_cds_delay(self, transcript):
         """ Method to find the actual start of the translated sequence
